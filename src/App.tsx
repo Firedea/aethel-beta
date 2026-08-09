@@ -2,6 +2,7 @@ import { useState } from "react";
 import Header from "./components/Header";
 import WalletCard from "./components/WalletCard";
 import SendCard from "./components/SendCard";
+import RewardsCard from "./components/RewardsCard";
 import { useWallet } from "./hooks/useWallet";
 
 function App() {
@@ -21,32 +22,31 @@ function App() {
   const [sending, setSending] = useState(false);
 
   async function handleSend() {
-  if (!to || !amount) {
-    alert("Escribe una dirección y una cantidad.");
-    return;
+    if (!to || !amount) {
+      alert("Escribe una dirección y una cantidad.");
+      return;
+    }
+
+    try {
+      setSending(true);
+
+      await sendTokens(to, amount);
+
+      setTo("");
+      setAmount("");
+
+      alert("Transferencia completada.");
+    } catch (error) {
+      console.error(error);
+      alert("La transferencia no pudo completarse.");
+    } finally {
+      setSending(false);
+    }
   }
-
-  try {
-    setSending(true);
-
-    await sendTokens(to, amount);
-
-    setTo("");
-    setAmount("");
-
-    alert("Transferencia completada.");
-  } catch (error) {
-    console.error(error);
-    alert("La transferencia no pudo completarse.");
-  } finally {
-    setSending(false);
-  }
-}
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-8">
-      <div className="max-w-xl mx-auto">
-
+    <div className="min-h-screen bg-slate-950 p-8 text-white">
+      <div className="mx-auto max-w-xl space-y-6">
         <Header
           tokenName={tokenName}
           symbol={symbol}
@@ -56,7 +56,7 @@ function App() {
 
         <button
           onClick={connectWallet}
-          className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-3 rounded-xl"
+          className="w-full rounded-xl bg-amber-500 py-3 font-bold text-black hover:bg-amber-400"
         >
           Conectar Wallet
         </button>
@@ -67,9 +67,7 @@ function App() {
               account={account}
               balance={balance}
               symbol={symbol}
-              onCopy={() =>
-                navigator.clipboard.writeText(account)
-              }
+              onCopy={() => navigator.clipboard.writeText(account)}
             />
 
             <SendCard
@@ -81,9 +79,13 @@ function App() {
               onSend={handleSend}
               sending={sending}
             />
+
+            <RewardsCard
+              balance={balance}
+              symbol={symbol}
+            />
           </>
         )}
-
       </div>
     </div>
   );
