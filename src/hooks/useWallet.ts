@@ -25,9 +25,28 @@ export function useWallet() {
   const [history, setHistory] = useState<any[]>([]);
 
   async function connectWallet() {
-    if (!window.ethereum) return;
+  const ethereum = window.ethereum;
 
-    const ethereum = window.ethereum;
+  if (!ethereum) {
+    const isMobileDevice =
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (isMobileDevice) {
+      const dappUrl = window.location.href.replace(/^https?:\/\//, "");
+
+      window.location.assign(
+        `https://link.metamask.io/dapp/${dappUrl}`
+      );
+
+      return;
+    }
+
+    alert(
+      "No encontramos MetaMask. Instala la extensión para conectar tu wallet."
+    );
+
+    return;
+  }
 
     try {
   await ethereum.request({
