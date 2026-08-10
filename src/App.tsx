@@ -5,6 +5,9 @@ import SendCard from "./components/SendCard";
 import RewardsCard from "./components/RewardsCard";
 import { useWallet } from "./hooks/useWallet";
 
+const TREASURY_ADDRESS =
+  "0x747413C4f59f0587a05661DEbB19509F93b18a0c";
+
 function App() {
   const {
     account,
@@ -20,6 +23,7 @@ function App() {
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
   const [sending, setSending] = useState(false);
+  const [redeeming, setRedeeming] = useState(false);
 
   async function handleSend() {
     if (!to || !amount) {
@@ -29,7 +33,6 @@ function App() {
 
     try {
       setSending(true);
-
       await sendTokens(to, amount);
 
       setTo("");
@@ -41,6 +44,39 @@ function App() {
       alert("La transferencia no pudo completarse.");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleRedeem(
+    rewardName: string,
+    cost: number
+  ) {
+    const confirmed = window.confirm(
+      `Canje de prueba:\n\n${rewardName} de $100 MXN\nCosto: ${cost.toLocaleString(
+        "es-MX"
+      )} ${symbol}\n\nLos tokens se enviarán a la tesorería de Aethel. No se entregará una tarjeta real durante esta prueba.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setRedeeming(true);
+
+      const hash = await sendTokens(
+        TREASURY_ADDRESS,
+        cost.toString()
+      );
+
+      alert(
+        `Canje de prueba confirmado.\n\nRecompensa: ${rewardName}\nComprobante:\n${hash}`
+      );
+    } catch (error) {
+      console.error(error);
+      alert(
+        "El canje no pudo completarse. No confirmes nuevamente sin revisar primero tu saldo y las transacciones."
+      );
+    } finally {
+      setRedeeming(false);
     }
   }
 
@@ -67,7 +103,9 @@ function App() {
               account={account}
               balance={balance}
               symbol={symbol}
-              onCopy={() => navigator.clipboard.writeText(account)}
+              onCopy={() =>
+                navigator.clipboard.writeText(account)
+              }
             />
 
             <SendCard
@@ -83,6 +121,8 @@ function App() {
             <RewardsCard
               balance={balance}
               symbol={symbol}
+              redeeming={redeeming}
+              onRedeem={handleRedeem}
             />
           </>
         )}
