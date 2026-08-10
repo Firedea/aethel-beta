@@ -150,44 +150,41 @@ export function useWallet() {
   }
 
   async function sendTokens(
-    to: string,
-    amount: string
-  ) {
-    const provider =
-      new ethers.BrowserProvider(
-        window.ethereum
-      );
-
-    const signer =
-      await provider.getSigner();
-
-    const contract =
-      new ethers.Contract(
-        CONTRACT_ADDRESS,
-        ABI,
-        signer
-      );
-
-    const tx =
-      await contract.transfer(
-        to,
-        ethers.parseEther(amount)
-      );
-
-    setTxHash(tx.hash);
-
-    await tx.wait();
-
-try {
-  await connectWallet();
-} catch (refreshError) {
-  console.warn(
-    "La transferencia fue confirmada, pero no se pudo actualizar la interfaz:",
-    refreshError
+  to: string,
+  amount: string
+) {
+  const provider = new ethers.BrowserProvider(
+    window.ethereum
   );
-}
+
+  const signer = await provider.getSigner();
+
+  const contract = new ethers.Contract(
+    CONTRACT_ADDRESS,
+    ABI,
+    signer
+  );
+
+  const tx = await contract.transfer(
+    to,
+    ethers.parseEther(amount)
+  );
+
+  setTxHash(tx.hash);
+
+  await tx.wait();
+
+  try {
+    await connectWallet();
+  } catch (refreshError) {
+    console.warn(
+      "La transferencia fue confirmada, pero no se pudo actualizar la interfaz:",
+      refreshError
+    );
   }
 
+  return tx.hash;
+}
   async function addToken() {
     await window.ethereum.request({
       method: "wallet_watchAsset",
