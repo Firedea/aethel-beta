@@ -194,7 +194,7 @@ export function useWallet() {
           address: CONTRACT_ADDRESS,
           symbol: "AETH",
           decimals: 18,
-          image: "/aethel.png"
+          image: "https://aethel-app-eight.vercel.app/aethel.png"
         }
       }
     });

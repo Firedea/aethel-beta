@@ -35,6 +35,7 @@ function App() {
     network,
     connectWallet,
     sendTokens,
+    addToken,
   } = useWallet();
 
   const [to, setTo] = useState("");
@@ -156,6 +157,13 @@ function App() {
                 navigator.clipboard.writeText(account)
               }
             />
+
+            <button
+              onClick={addToken}
+              className="w-full rounded-xl border border-amber-500 py-3 font-bold text-amber-400 hover:bg-amber-500/10"
+            >
+              Añadir AETH a MetaMask
+            </button>
 
             <SendCard
               to={to}
