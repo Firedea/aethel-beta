@@ -3,10 +3,27 @@ import Header from "./components/Header";
 import WalletCard from "./components/WalletCard";
 import SendCard from "./components/SendCard";
 import RewardsCard from "./components/RewardsCard";
+import RedemptionReceipt, {
+  type RedemptionReceiptData,
+} from "./components/RedemptionReceipt";
 import { useWallet } from "./hooks/useWallet";
 
 const TREASURY_ADDRESS =
   "0x747413C4f59f0587a05661DEbB19509F93b18a0c";
+
+function loadLastReceipt(): RedemptionReceiptData | null {
+  try {
+    const saved = localStorage.getItem(
+      "aethel:last-redemption"
+    );
+
+    if (!saved) return null;
+
+    return JSON.parse(saved) as RedemptionReceiptData;
+  } catch {
+    return null;
+  }
+}
 
 function App() {
   const {
@@ -24,6 +41,10 @@ function App() {
   const [amount, setAmount] = useState("");
   const [sending, setSending] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
+  const [receipt, setReceipt] =
+    useState<RedemptionReceiptData | null>(
+      loadLastReceipt
+    );
 
   async function handleSend() {
     if (!to || !amount) {
@@ -33,6 +54,7 @@ function App() {
 
     try {
       setSending(true);
+
       await sendTokens(to, amount);
 
       setTo("");
@@ -49,12 +71,13 @@ function App() {
 
   async function handleRedeem(
     rewardName: string,
-    cost: number
+    cost: number,
+    downloadUrl?: string
   ) {
     const confirmed = window.confirm(
-      `Canje de prueba:\n\n${rewardName} de $100 MXN\nCosto: ${cost.toLocaleString(
+      `Canje de prueba:\n\n${rewardName}\nCosto: ${cost.toLocaleString(
         "es-MX"
-      )} ${symbol}\n\nLos tokens se enviarán a la tesorería de Aethel. No se entregará una tarjeta real durante esta prueba.`
+      )} ${symbol}\n\nLos tokens se enviarán a la tesorería de Aethel.`
     );
 
     if (!confirmed) return;
@@ -67,13 +90,39 @@ function App() {
         cost.toString()
       );
 
-      alert(
-        `Canje de prueba confirmado.\n\nRecompensa: ${rewardName}\nComprobante:\n${hash}`
+      const newReceipt: RedemptionReceiptData = {
+        reward: rewardName,
+        cost,
+        symbol,
+        hash,
+        wallet: account,
+        treasury: TREASURY_ADDRESS,
+        createdAt: new Date().toISOString(),
+      };
+
+      setReceipt(newReceipt);
+
+      localStorage.setItem(
+        "aethel:last-redemption",
+        JSON.stringify(newReceipt)
       );
+
+      alert("Canje confirmado. Comprobante guardado.");
+
+      if (downloadUrl) {
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download =
+          "Aethel_Control_Financiero.xlsx";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
     } catch (error) {
       console.error(error);
+
       alert(
-        "El canje no pudo completarse. No confirmes nuevamente sin revisar primero tu saldo y las transacciones."
+        "El canje no pudo completarse. Revisa MetaMask antes de intentarlo nuevamente."
       );
     } finally {
       setRedeeming(false);
@@ -124,6 +173,8 @@ function App() {
               redeeming={redeeming}
               onRedeem={handleRedeem}
             />
+
+            <RedemptionReceipt receipt={receipt} />
           </>
         )}
       </div>
