@@ -3,6 +3,7 @@ import Header from "./components/Header";
 import WalletCard from "./components/WalletCard";
 import SendCard from "./components/SendCard";
 import RewardsCard from "./components/RewardsCard";
+import MissionsCard from "./components/MissionsCard";
 import RedemptionReceipt, {
   type RedemptionReceiptData,
 } from "./components/RedemptionReceipt";
@@ -181,6 +182,10 @@ function App() {
               redeeming={redeeming}
               onRedeem={handleRedeem}
             />
+            <MissionsCard
+  account={account}
+  symbol={symbol}
+/>
 
             <RedemptionReceipt receipt={receipt} />
           </>
