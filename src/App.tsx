@@ -4,6 +4,7 @@ import WalletCard from "./components/WalletCard";
 import SendCard from "./components/SendCard";
 import RewardsCard from "./components/RewardsCard";
 import MissionsCard from "./components/MissionsCard";
+import RegisterCard from "./components/RegisterCard";
 import RedemptionReceipt, {
   type RedemptionReceiptData,
 } from "./components/RedemptionReceipt";
@@ -140,6 +141,8 @@ function App() {
           supply={supply}
           network={network}
         />
+        <RegisterCard />
+        <MissionsCard />
 
         <button
           onClick={connectWallet}
@@ -182,11 +185,7 @@ function App() {
               redeeming={redeeming}
               onRedeem={handleRedeem}
             />
-            <MissionsCard
-  account={account}
-  symbol={symbol}
-/>
-
+            <MissionsCard />
             <RedemptionReceipt receipt={receipt} />
           </>
         )}
