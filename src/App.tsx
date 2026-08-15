@@ -35,7 +35,6 @@ function App() {
     symbol,
     supply,
     network,
-    connectWallet,
     sendTokens,
     addToken,
   } = useWallet();
