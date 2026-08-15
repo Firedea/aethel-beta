@@ -144,13 +144,6 @@ function App() {
         <RegisterCard />
         <MissionsCard />
 
-        <button
-          onClick={connectWallet}
-          className="w-full rounded-xl bg-amber-500 py-3 font-bold text-black hover:bg-amber-400"
-        >
-          Conectar Wallet
-        </button>
-
         {account && (
           <>
             <WalletCard
@@ -185,7 +178,6 @@ function App() {
               redeeming={redeeming}
               onRedeem={handleRedeem}
             />
-            <MissionsCard />
             <RedemptionReceipt receipt={receipt} />
           </>
         )}
