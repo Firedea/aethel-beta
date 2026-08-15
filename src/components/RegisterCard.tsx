@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import { Turnstile } from "@marsidev/react-turnstile";
 import { supabase } from "../lib/supabase";
 
 export default function RegisterCard() {
@@ -9,11 +10,14 @@ export default function RegisterCard() {
   const [password, setPassword] = useState("");
 
   const [user, setUser] = useState<User | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingName, setSavingName] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
   useEffect(() => {
     async function loadSession() {
@@ -50,9 +54,17 @@ export default function RegisterCard() {
     }
 
     if (password.length < 6) {
-      setMessage(
-        "La contraseña debe tener al menos 6 caracteres."
-      );
+      setMessage("La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+
+    if (!turnstileSiteKey) {
+      setMessage("Falta configurar la protección anti-bot.");
+      return;
+    }
+
+    if (!captchaToken) {
+      setMessage("Completa la verificación de seguridad.");
       return;
     }
 
@@ -63,6 +75,7 @@ export default function RegisterCard() {
       email,
       password,
       options: {
+        captchaToken,
         data: {
           full_name: name.trim(),
         },
@@ -71,6 +84,7 @@ export default function RegisterCard() {
 
     if (error) {
       setMessage(error.message);
+      setCaptchaToken(null);
       setLoading(false);
       return;
     }
@@ -81,6 +95,7 @@ export default function RegisterCard() {
       );
     }
 
+    setCaptchaToken(null);
     setLoading(false);
   }
 
@@ -93,11 +108,10 @@ export default function RegisterCard() {
     setLoading(true);
     setMessage("");
 
-    const { data, error } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (error) {
       setMessage(error.message);
@@ -162,9 +176,7 @@ export default function RegisterCard() {
   if (loading) {
     return (
       <div className="max-w-md mx-auto rounded-2xl border border-gray-800 bg-gray-900 p-6">
-        <p className="text-gray-400">
-          Cargando Aethel...
-        </p>
+        <p className="text-gray-400">Cargando Aethel...</p>
       </div>
     );
   }
@@ -194,18 +206,12 @@ export default function RegisterCard() {
           Hola {displayName} 👋
         </h2>
 
-        <p className="mt-1 text-gray-400">
-          Bienvenido a Aethel.
-        </p>
+        <p className="mt-1 text-gray-400">Bienvenido a Aethel.</p>
 
-        <p className="mt-4 text-sm text-gray-500">
-          {user.email}
-        </p>
+        <p className="mt-4 text-sm text-gray-500">{user.email}</p>
 
         {message && (
-          <p className="mt-4 text-sm text-gray-300">
-            {message}
-          </p>
+          <p className="mt-4 text-sm text-gray-300">{message}</p>
         )}
 
         {settingsOpen && (
@@ -231,9 +237,7 @@ export default function RegisterCard() {
               </div>
 
               <div className="mt-6">
-                <p className="text-sm text-gray-500">
-                  Nombre
-                </p>
+                <p className="text-sm text-gray-500">Nombre</p>
 
                 <input
                   type="text"
@@ -251,9 +255,7 @@ export default function RegisterCard() {
                   disabled={savingName}
                   className="mt-3 w-full rounded-xl bg-amber-400 p-3 font-bold text-black disabled:opacity-50"
                 >
-                  {savingName
-                    ? "Guardando..."
-                    : "Guardar nombre"}
+                  {savingName ? "Guardando..." : "Guardar nombre"}
                 </button>
               </div>
 
@@ -280,7 +282,8 @@ export default function RegisterCard() {
       </h2>
 
       <p className="mt-2 text-sm text-gray-400">
-        Crea tu cuenta para comenzar a completar misiones y ganar AETH.
+        Crea tu cuenta para completar misiones, ganar AETH —los puntos
+        de recompensa de Aethel— y desbloquear beneficios.
       </p>
 
       <input
@@ -307,13 +310,41 @@ export default function RegisterCard() {
         className="mt-3 w-full rounded-xl bg-gray-800 p-3 text-white"
       />
 
+      {turnstileSiteKey ? (
+        <div className="mt-4 flex justify-center">
+          <Turnstile
+            siteKey={turnstileSiteKey}
+            options={{
+              theme: "dark",
+            }}
+            onSuccess={(token) => {
+              setCaptchaToken(token);
+              setMessage("");
+            }}
+            onExpire={() => {
+              setCaptchaToken(null);
+            }}
+            onError={() => {
+              setCaptchaToken(null);
+              setMessage(
+                "No pudimos completar la verificación de seguridad."
+              );
+            }}
+          />
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-red-300">
+          La protección anti-bot no está configurada.
+        </p>
+      )}
+
       <button
         type="button"
         onClick={handleRegister}
-        disabled={loading}
-        className="mt-4 w-full rounded-xl bg-amber-400 p-3 font-bold text-black disabled:opacity-50"
+        disabled={loading || !captchaToken}
+        className="mt-4 w-full rounded-xl bg-amber-400 p-3 font-bold text-black disabled:cursor-not-allowed disabled:opacity-50"
       >
-        Crear mi cuenta
+        {loading ? "Creando cuenta..." : "Crear mi cuenta"}
       </button>
 
       <div className="my-4 flex items-center gap-3">
@@ -336,9 +367,7 @@ export default function RegisterCard() {
       </button>
 
       {message && (
-        <p className="mt-4 text-sm text-gray-300">
-          {message}
-        </p>
+        <p className="mt-4 text-sm text-gray-300">{message}</p>
       )}
     </div>
   );
