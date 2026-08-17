@@ -72,15 +72,15 @@ export default function RegisterCard() {
     setMessage("");
 
     const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        captchaToken,
-        data: {
-          full_name: name.trim(),
-        },
-      },
-    });
+  email,
+  password,
+  options: {
+    captchaToken,
+    data: {
+      full_name: name.trim(),
+    },
+  },
+});
 
     if (error) {
       setMessage(error.message);
