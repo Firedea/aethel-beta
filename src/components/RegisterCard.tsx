@@ -103,15 +103,22 @@ export default function RegisterCard() {
     if (!email || !password) {
       setMessage("Escribe tu correo y contraseña.");
       return;
+      if (!captchaToken) {
+  setMessage("Completa la verificación de seguridad.");
+  return;
+}
     }
 
     setLoading(true);
     setMessage("");
 
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  email,
+  password,
+  options: {
+    captchaToken: captchaToken ?? undefined,
+  },
+});
 
     if (error) {
       setMessage(error.message);
