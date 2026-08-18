@@ -16,6 +16,13 @@ export default function RewardsCatalog() {
   const [authenticated, setAuthenticated] = useState(false);
   const [error, setError] = useState("");
 
+  const [joiningRewardId, setJoiningRewardId] =
+    useState<number | null>(null);
+
+  const [waitlistMessages, setWaitlistMessages] = useState<
+    Record<number, string>
+  >({});
+
   useEffect(() => {
     let cancelled = false;
 
@@ -72,6 +79,62 @@ export default function RewardsCatalog() {
     };
   }, []);
 
+  async function joinWaitlist(rewardId: number) {
+    setJoiningRewardId(rewardId);
+
+    setWaitlistMessages((current) => ({
+      ...current,
+      [rewardId]: "",
+    }));
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setWaitlistMessages((current) => ({
+        ...current,
+        [rewardId]: "Inicia sesión para apuntarte.",
+      }));
+
+      setJoiningRewardId(null);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("reward_waitlist")
+      .insert({
+        user_id: user.id,
+        reward_id: rewardId,
+      });
+
+    if (error) {
+      if (error.code === "23505") {
+        setWaitlistMessages((current) => ({
+          ...current,
+          [rewardId]: "Ya estás en la lista de espera.",
+        }));
+      } else {
+        console.error("Error en waitlist:", error);
+
+        setWaitlistMessages((current) => ({
+          ...current,
+          [rewardId]: "No pudimos agregarte. Intenta otra vez.",
+        }));
+      }
+
+      setJoiningRewardId(null);
+      return;
+    }
+
+    setWaitlistMessages((current) => ({
+      ...current,
+      [rewardId]: "Listo. Te avisaremos cuando esté disponible.",
+    }));
+
+    setJoiningRewardId(null);
+  }
+
   return (
     <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-xl">
       <div className="mb-5">
@@ -104,7 +167,9 @@ export default function RewardsCatalog() {
       )}
 
       {!loading && authenticated && error && (
-        <p className="text-sm text-red-400">{error}</p>
+        <p className="text-sm text-red-400">
+          {error}
+        </p>
       )}
 
       {!loading &&
@@ -146,9 +211,28 @@ export default function RewardsCatalog() {
                       Disponible
                     </span>
                   ) : (
-                    <span className="inline-flex rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-400">
-                      Sin stock
-                    </span>
+                    <>
+                      <span className="inline-flex rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-400">
+                        Sin stock
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={joiningRewardId === reward.id}
+                        onClick={() => joinWaitlist(reward.id)}
+                        className="mt-4 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-400 transition hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {joiningRewardId === reward.id
+                          ? "Guardando..."
+                          : "Avísame"}
+                      </button>
+
+                      {waitlistMessages[reward.id] && (
+                        <p className="mt-2 text-xs text-slate-400">
+                          {waitlistMessages[reward.id]}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </article>
