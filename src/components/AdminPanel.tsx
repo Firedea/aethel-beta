@@ -8,11 +8,27 @@ type AdminSection =
   | "encuestas"
   | "recompensas";
 
+type AdminUser = {
+  user_id: string;
+  email: string | null;
+  full_name: string;
+  created_at: string;
+  missions_completed: number;
+  aeth_earned: number;
+  aeth_spent: number;
+  aeth_balance: number;
+};
+
 export default function AdminPanel() {
   const [checking, setChecking] = useState(true);
   const [authorized, setAuthorized] = useState(false);
+
   const [section, setSection] =
     useState<AdminSection>("resumen");
+
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState("");
 
   useEffect(() => {
     async function checkAdmin() {
@@ -45,6 +61,49 @@ export default function AdminPanel() {
     checkAdmin();
   }, []);
 
+  useEffect(() => {
+    if (!authorized) return;
+
+    async function loadUsers() {
+      setUsersLoading(true);
+      setUsersError("");
+
+      const { data, error } = await supabase.rpc(
+        "admin_list_users"
+      );
+
+      if (error) {
+        console.error(
+          "Error cargando usuarios:",
+          error
+        );
+
+        setUsersError(
+          "No pudimos cargar los usuarios."
+        );
+
+        setUsersLoading(false);
+        return;
+      }
+
+      const normalizedUsers: AdminUser[] =
+        (data ?? []).map((user: AdminUser) => ({
+          ...user,
+          missions_completed: Number(
+            user.missions_completed
+          ),
+          aeth_earned: Number(user.aeth_earned),
+          aeth_spent: Number(user.aeth_spent),
+          aeth_balance: Number(user.aeth_balance),
+        }));
+
+      setUsers(normalizedUsers);
+      setUsersLoading(false);
+    }
+
+    loadUsers();
+  }, [authorized]);
+
   if (checking) {
     return (
       <div className="min-h-screen bg-slate-950 p-8 text-white">
@@ -66,8 +125,8 @@ export default function AdminPanel() {
           </h1>
 
           <p className="mt-2 text-slate-400">
-            Esta sección es exclusiva para administradores
-            de Aethel.
+            Esta sección es exclusiva para
+            administradores de Aethel.
           </p>
 
           <a
@@ -92,6 +151,19 @@ export default function AdminPanel() {
     { id: "recompensas", label: "Recompensas" },
   ];
 
+  const totalUsers = users.length;
+
+  const totalMissions = users.reduce(
+    (total, user) =>
+      total + user.missions_completed,
+    0
+  );
+
+  const totalAeth = users.reduce(
+    (total, user) => total + user.aeth_earned,
+    0
+  );
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <div className="mx-auto flex min-h-screen max-w-7xl">
@@ -115,7 +187,9 @@ export default function AdminPanel() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setSection(item.id)}
+                onClick={() =>
+                  setSection(item.id)
+                }
                 className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
                   section === item.id
                     ? "bg-amber-500 text-black"
@@ -135,7 +209,7 @@ export default function AdminPanel() {
           </a>
         </aside>
 
-        <main className="flex-1 p-8">
+        <main className="min-w-0 flex-1 p-8">
           <div className="mb-8">
             <p className="text-sm text-slate-500">
               Administración
@@ -151,17 +225,35 @@ export default function AdminPanel() {
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <AdminCard
                   title="Usuarios"
-                  value="—"
+                  value={
+                    usersLoading
+                      ? "—"
+                      : totalUsers.toLocaleString(
+                          "es-MX"
+                        )
+                  }
                 />
 
                 <AdminCard
                   title="AETH distribuidos"
-                  value="—"
+                  value={
+                    usersLoading
+                      ? "—"
+                      : `${totalAeth.toLocaleString(
+                          "es-MX"
+                        )} AETH`
+                  }
                 />
 
                 <AdminCard
                   title="Misiones completadas"
-                  value="—"
+                  value={
+                    usersLoading
+                      ? "—"
+                      : totalMissions.toLocaleString(
+                          "es-MX"
+                        )
+                  }
                 />
 
                 <AdminCard
@@ -180,18 +272,151 @@ export default function AdminPanel() {
                 </p>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  El suministro máximo no representa la
-                  cantidad actualmente en circulación.
+                  El suministro máximo no representa
+                  la cantidad actualmente en
+                  circulación.
                 </p>
               </div>
             </div>
           )}
 
           {section === "usuarios" && (
-            <Placeholder
-              title="Usuarios"
-              text="Aquí podrás consultar usuarios, saldo AETH y misiones completadas."
-            />
+            <div className="rounded-2xl border border-slate-800 bg-slate-900">
+              <div className="border-b border-slate-800 p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold">
+                      Usuarios registrados
+                    </h3>
+
+                    <p className="mt-1 text-sm text-slate-400">
+                      Consulta saldo y actividad de
+                      los usuarios de Aethel.
+                    </p>
+                  </div>
+
+                  {!usersLoading &&
+                    !usersError && (
+                      <span className="rounded-full bg-amber-500/15 px-3 py-1 text-sm font-semibold text-amber-400">
+                        {totalUsers} usuarios
+                      </span>
+                    )}
+                </div>
+              </div>
+
+              {usersLoading && (
+                <p className="p-5 text-sm text-slate-400">
+                  Cargando usuarios...
+                </p>
+              )}
+
+              {!usersLoading && usersError && (
+                <p className="p-5 text-sm text-red-400">
+                  {usersError}
+                </p>
+              )}
+
+              {!usersLoading &&
+                !usersError &&
+                users.length === 0 && (
+                  <p className="p-5 text-sm text-slate-400">
+                    Todavía no hay usuarios
+                    registrados.
+                  </p>
+                )}
+
+              {!usersLoading &&
+                !usersError &&
+                users.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b border-slate-800 bg-slate-950/50 text-xs uppercase text-slate-500">
+                        <tr>
+                          <th className="px-5 py-4">
+                            Usuario
+                          </th>
+
+                          <th className="px-5 py-4">
+                            Registro
+                          </th>
+
+                          <th className="px-5 py-4">
+                            Misiones
+                          </th>
+
+                          <th className="px-5 py-4">
+                            Ganados
+                          </th>
+
+                          <th className="px-5 py-4">
+                            Gastados
+                          </th>
+
+                          <th className="px-5 py-4">
+                            Saldo
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {users.map((user) => (
+                          <tr
+                            key={user.user_id}
+                            className="border-b border-slate-800 last:border-0"
+                          >
+                            <td className="px-5 py-4">
+                              <p className="font-semibold">
+                                {user.full_name ||
+                                  "Sin nombre"}
+                              </p>
+
+                              <p className="mt-1 text-xs text-slate-500">
+                                {user.email ||
+                                  "Sin correo"}
+                              </p>
+                            </td>
+
+                            <td className="whitespace-nowrap px-5 py-4 text-slate-300">
+                              {new Date(
+                                user.created_at
+                              ).toLocaleDateString(
+                                "es-MX"
+                              )}
+                            </td>
+
+                            <td className="px-5 py-4">
+                              {user.missions_completed}
+                            </td>
+
+                            <td className="whitespace-nowrap px-5 py-4 text-emerald-400">
+                              +
+                              {user.aeth_earned.toLocaleString(
+                                "es-MX"
+                              )}{" "}
+                              AETH
+                            </td>
+
+                            <td className="whitespace-nowrap px-5 py-4 text-red-400">
+                              -
+                              {user.aeth_spent.toLocaleString(
+                                "es-MX"
+                              )}{" "}
+                              AETH
+                            </td>
+
+                            <td className="whitespace-nowrap px-5 py-4 font-bold text-amber-400">
+                              {user.aeth_balance.toLocaleString(
+                                "es-MX"
+                              )}{" "}
+                              AETH
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+            </div>
           )}
 
           {section === "misiones" && (
