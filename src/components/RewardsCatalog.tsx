@@ -10,6 +10,14 @@ type Reward = {
   active: boolean;
 };
 
+type RedeemResult = {
+  success: boolean;
+  redemption_id: number;
+  reward_id: number;
+  cost_aeth: number;
+  new_balance: number;
+};
+
 export default function RewardsCatalog() {
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,14 +26,15 @@ export default function RewardsCatalog() {
 
   const [joiningRewardId, setJoiningRewardId] =
     useState<number | null>(null);
-  const [redeemingRewardId, setRedeemingRewardId] =
-  useState<number | null>(null);
 
-const [redeemMessages, setRedeemMessages] = useState<
-  Record<number, string>
->({});
+  const [redeemingRewardId, setRedeemingRewardId] =
+    useState<number | null>(null);
 
   const [waitlistMessages, setWaitlistMessages] = useState<
+    Record<number, string>
+  >({});
+
+  const [redeemMessages, setRedeemMessages] = useState<
     Record<number, string>
   >({});
 
@@ -44,6 +53,7 @@ const [redeemMessages, setRedeemMessages] = useState<
 
       if (!session) {
         setAuthenticated(false);
+        setRewards([]);
         setLoading(false);
         return;
       }
@@ -67,7 +77,7 @@ const [redeemMessages, setRedeemMessages] = useState<
         return;
       }
 
-      setRewards(data ?? []);
+      setRewards((data ?? []) as Reward[]);
       setLoading(false);
     }
 
@@ -86,131 +96,147 @@ const [redeemMessages, setRedeemMessages] = useState<
   }, []);
 
   async function joinWaitlist(rewardId: number) {
-  setJoiningRewardId(rewardId);
+    setJoiningRewardId(rewardId);
 
-  setWaitlistMessages((current) => ({
-    ...current,
-    [rewardId]: "",
-  }));
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
     setWaitlistMessages((current) => ({
       ...current,
-      [rewardId]: "Inicia sesión para apuntarte.",
+      [rewardId]: "",
+    }));
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setWaitlistMessages((current) => ({
+        ...current,
+        [rewardId]: "Inicia sesión para apuntarte.",
+      }));
+
+      setJoiningRewardId(null);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("reward_waitlist")
+      .insert({
+        user_id: user.id,
+        reward_id: rewardId,
+      });
+
+    if (error) {
+      if (error.code === "23505") {
+        setWaitlistMessages((current) => ({
+          ...current,
+          [rewardId]: "Ya estás en la lista de espera.",
+        }));
+      } else {
+        console.error("Error en waitlist:", error);
+
+        setWaitlistMessages((current) => ({
+          ...current,
+          [rewardId]:
+            "No pudimos agregarte. Intenta otra vez.",
+        }));
+      }
+
+      setJoiningRewardId(null);
+      return;
+    }
+
+    setWaitlistMessages((current) => ({
+      ...current,
+      [rewardId]:
+        "Listo. Te avisaremos cuando esté disponible.",
     }));
 
     setJoiningRewardId(null);
-    return;
   }
 
-  const { error } = await supabase
-    .from("reward_waitlist")
-    .insert({
-      user_id: user.id,
-      reward_id: rewardId,
-    });
+  async function redeemReward(rewardId: number) {
+    const confirmed = window.confirm(
+      "¿Quieres canjear esta recompensa usando tus AETH?"
+    );
 
-  if (error) {
-    if (error.code === "23505") {
-      setWaitlistMessages((current) => ({
-        ...current,
-        [rewardId]: "Ya estás en la lista de espera.",
-      }));
-    } else {
-      console.error("Error en waitlist:", error);
+    if (!confirmed) return;
 
-      setWaitlistMessages((current) => ({
-        ...current,
-        [rewardId]: "No pudimos agregarte. Intenta otra vez.",
-      }));
-    }
-
-    setJoiningRewardId(null);
-    return;
-  }
-
-  setWaitlistMessages((current) => ({
-    ...current,
-    [rewardId]: "Listo. Te avisaremos cuando esté disponible.",
-  }));
-
-  setJoiningRewardId(null);
-}
-
-async function redeemReward(rewardId: number) {
-  const confirmed = window.confirm(
-    "¿Quieres canjear esta recompensa usando tus AETH?"
-  );
-
-  if (!confirmed) return;
-
-  setRedeemingRewardId(rewardId);
-
-  setRedeemMessages((current) => ({
-  ...current,
-  [rewardId]: `Canje realizado. Nuevo saldo: ${data.new_balance} AETH.`,
-}));
-window.dispatchEvent(
-  new CustomEvent("aethel:balance-updated")
-);
-
-  const { data, error } = await supabase.rpc(
-    "redeem_reward",
-    {
-      p_reward_id: rewardId,
-    }
-  );
-
-  if (error) {
-    console.error("Error al canjear:", error);
-
-    let message =
-      "No pudimos completar el canje. Intenta nuevamente.";
-
-    if (error.message.includes("INSUFFICIENT_AETH")) {
-      message = "Todavía no tienes suficientes AETH.";
-    } else if (error.message.includes("OUT_OF_STOCK")) {
-      message = "Esta recompensa se quedó sin stock.";
-    } else if (
-      error.message.includes("REWARD_NOT_AVAILABLE")
-    ) {
-      message = "Esta recompensa ya no está disponible.";
-    }
+    setRedeemingRewardId(rewardId);
 
     setRedeemMessages((current) => ({
       ...current,
-      [rewardId]: message,
+      [rewardId]: "",
     }));
 
+    const { data, error } = await supabase.rpc(
+      "redeem_reward",
+      {
+        p_reward_id: rewardId,
+      }
+    );
+
+    if (error) {
+      console.error("Error al canjear:", error);
+
+      let message =
+        "No pudimos completar el canje. Intenta nuevamente.";
+
+      if (error.message.includes("INSUFFICIENT_AETH")) {
+        message =
+          "Todavía no tienes suficientes AETH.";
+      } else if (
+        error.message.includes("OUT_OF_STOCK")
+      ) {
+        message =
+          "Esta recompensa se quedó sin stock.";
+      } else if (
+        error.message.includes("REWARD_NOT_AVAILABLE")
+      ) {
+        message =
+          "Esta recompensa ya no está disponible.";
+      } else if (
+        error.message.includes("AUTH_REQUIRED")
+      ) {
+        message =
+          "Necesitas iniciar sesión para canjear.";
+      }
+
+      setRedeemMessages((current) => ({
+        ...current,
+        [rewardId]: message,
+      }));
+
+      setRedeemingRewardId(null);
+      return;
+    }
+
+    const result = data as RedeemResult;
+
+    setRedeemMessages((current) => ({
+      ...current,
+      [rewardId]:
+        `Canje realizado. Nuevo saldo: ${result.new_balance} AETH.`,
+    }));
+
+    setRewards((current) =>
+      current.map((reward) =>
+        reward.id === rewardId
+          ? {
+              ...reward,
+              stock_quantity: Math.max(
+                0,
+                reward.stock_quantity - 1
+              ),
+            }
+          : reward
+      )
+    );
+
+    window.dispatchEvent(
+      new CustomEvent("aethel:balance-updated")
+    );
+
     setRedeemingRewardId(null);
-    return;
   }
-
-  setRedeemMessages((current) => ({
-    ...current,
-    [rewardId]: `Canje realizado. Nuevo saldo: ${data.new_balance} AETH.`,
-  }));
-
-  setRewards((current) =>
-    current.map((reward) =>
-      reward.id === rewardId
-        ? {
-            ...reward,
-            stock_quantity: Math.max(
-              0,
-              reward.stock_quantity - 1
-            ),
-          }
-        : reward
-    )
-  );
-
-  setRedeemingRewardId(null);
-}
 
   return (
     <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-xl">
@@ -258,84 +284,117 @@ window.dispatchEvent(
           </p>
         )}
 
-      {!loading && authenticated && rewards.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {rewards.map((reward) => {
-            const available = reward.stock_quantity > 0;
+      {!loading &&
+        authenticated &&
+        !error &&
+        rewards.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {rewards.map((reward) => {
+              const available =
+                reward.stock_quantity > 0;
 
-            return (
-              <article
-                key={reward.id}
-                className="rounded-xl border border-slate-800 bg-slate-950 p-4"
-              >
-                <h3 className="font-semibold">
-                  {reward.title}
-                </h3>
+              return (
+                <article
+                  key={reward.id}
+                  className="rounded-xl border border-slate-800 bg-slate-950 p-4"
+                >
+                  <h3 className="font-semibold">
+                    {reward.title}
+                  </h3>
 
-                {reward.description && (
-                  <p className="mt-1 text-sm text-slate-400">
-                    {reward.description}
-                  </p>
-                )}
-
-                <p className="mt-4 font-semibold text-amber-400">
-                  {reward.cost_aeth.toLocaleString("es-MX")} AETH
-                </p>
-
-                <div className="mt-3">
-                  {available ? (
-                    <>
-  <span className="inline-flex rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-400">
-    Disponible
-  </span>
-
-  <button
-    type="button"
-    disabled={redeemingRewardId === reward.id}
-    onClick={() => redeemReward(reward.id)}
-    className="mt-4 w-full rounded-lg bg-amber-500 px-3 py-2 text-sm font-bold text-black transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
-  >
-    {redeemingRewardId === reward.id
-      ? "Canjeando..."
-      : `Canjear por ${reward.cost_aeth.toLocaleString("es-MX")} AETH`}
-  </button>
-
-  {redeemMessages[reward.id] && (
-    <p className="mt-2 text-xs text-slate-400">
-      {redeemMessages[reward.id]}
-    </p>
-  )}
-</>
-                  ) : (
-                    <>
-                      <span className="inline-flex rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-400">
-                        Sin stock
-                      </span>
-
-                      <button
-                        type="button"
-                        disabled={joiningRewardId === reward.id}
-                        onClick={() => joinWaitlist(reward.id)}
-                        className="mt-4 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-400 transition hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {joiningRewardId === reward.id
-                          ? "Guardando..."
-                          : "Avísame"}
-                      </button>
-
-                      {waitlistMessages[reward.id] && (
-                        <p className="mt-2 text-xs text-slate-400">
-                          {waitlistMessages[reward.id]}
-                        </p>
-                      )}
-                    </>
+                  {reward.description && (
+                    <p className="mt-1 text-sm text-slate-400">
+                      {reward.description}
+                    </p>
                   )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
+
+                  <p className="mt-4 font-semibold text-amber-400">
+                    {reward.cost_aeth.toLocaleString(
+                      "es-MX"
+                    )}{" "}
+                    AETH
+                  </p>
+
+                  <div className="mt-3">
+                    {available ? (
+                      <>
+                        <span className="inline-flex rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-400">
+                          Disponible
+                        </span>
+
+                        <button
+                          type="button"
+                          disabled={
+                            redeemingRewardId ===
+                            reward.id
+                          }
+                          onClick={() =>
+                            redeemReward(reward.id)
+                          }
+                          className="mt-4 w-full rounded-lg bg-amber-500 px-3 py-2 text-sm font-bold text-black transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {redeemingRewardId ===
+                          reward.id
+                            ? "Canjeando..."
+                            : `Canjear por ${reward.cost_aeth.toLocaleString(
+                                "es-MX"
+                              )} AETH`}
+                        </button>
+
+                        {redeemMessages[
+                          reward.id
+                        ] && (
+                          <p className="mt-2 text-xs text-slate-400">
+                            {
+                              redeemMessages[
+                                reward.id
+                              ]
+                            }
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <span className="inline-flex rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-400">
+                          Sin stock
+                        </span>
+
+                        <button
+                          type="button"
+                          disabled={
+                            joiningRewardId ===
+                            reward.id
+                          }
+                          onClick={() =>
+                            joinWaitlist(reward.id)
+                          }
+                          className="mt-4 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-400 transition hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {joiningRewardId ===
+                          reward.id
+                            ? "Guardando..."
+                            : "Avísame"}
+                        </button>
+
+                        {waitlistMessages[
+                          reward.id
+                        ] && (
+                          <p className="mt-2 text-xs text-slate-400">
+                            {
+                              waitlistMessages[
+                                reward.id
+                              ]
+                            }
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
     </section>
   );
 }
