@@ -58,8 +58,24 @@ export default function MissionsCard() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+  loadCompletedMissions();
+
+  function handleBalanceUpdated() {
     loadCompletedMissions();
-  }, []);
+  }
+
+  window.addEventListener(
+    "aethel:balance-updated",
+    handleBalanceUpdated
+  );
+
+  return () => {
+    window.removeEventListener(
+      "aethel:balance-updated",
+      handleBalanceUpdated
+    );
+  };
+}, []);
 
   async function loadCompletedMissions() {
     setLoading(true);

@@ -151,9 +151,12 @@ async function redeemReward(rewardId: number) {
   setRedeemingRewardId(rewardId);
 
   setRedeemMessages((current) => ({
-    ...current,
-    [rewardId]: "",
-  }));
+  ...current,
+  [rewardId]: `Canje realizado. Nuevo saldo: ${data.new_balance} AETH.`,
+}));
+window.dispatchEvent(
+  new CustomEvent("aethel:balance-updated")
+);
 
   const { data, error } = await supabase.rpc(
     "redeem_reward",
