@@ -18,6 +18,12 @@ export default function RewardsCatalog() {
 
   const [joiningRewardId, setJoiningRewardId] =
     useState<number | null>(null);
+  const [redeemingRewardId, setRedeemingRewardId] =
+  useState<number | null>(null);
+
+const [redeemMessages, setRedeemMessages] = useState<
+  Record<number, string>
+>({});
 
   const [waitlistMessages, setWaitlistMessages] = useState<
     Record<number, string>
@@ -80,60 +86,128 @@ export default function RewardsCatalog() {
   }, []);
 
   async function joinWaitlist(rewardId: number) {
-    setJoiningRewardId(rewardId);
+  setJoiningRewardId(rewardId);
 
+  setWaitlistMessages((current) => ({
+    ...current,
+    [rewardId]: "",
+  }));
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
     setWaitlistMessages((current) => ({
       ...current,
-      [rewardId]: "",
-    }));
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setWaitlistMessages((current) => ({
-        ...current,
-        [rewardId]: "Inicia sesión para apuntarte.",
-      }));
-
-      setJoiningRewardId(null);
-      return;
-    }
-
-    const { error } = await supabase
-      .from("reward_waitlist")
-      .insert({
-        user_id: user.id,
-        reward_id: rewardId,
-      });
-
-    if (error) {
-      if (error.code === "23505") {
-        setWaitlistMessages((current) => ({
-          ...current,
-          [rewardId]: "Ya estás en la lista de espera.",
-        }));
-      } else {
-        console.error("Error en waitlist:", error);
-
-        setWaitlistMessages((current) => ({
-          ...current,
-          [rewardId]: "No pudimos agregarte. Intenta otra vez.",
-        }));
-      }
-
-      setJoiningRewardId(null);
-      return;
-    }
-
-    setWaitlistMessages((current) => ({
-      ...current,
-      [rewardId]: "Listo. Te avisaremos cuando esté disponible.",
+      [rewardId]: "Inicia sesión para apuntarte.",
     }));
 
     setJoiningRewardId(null);
+    return;
   }
+
+  const { error } = await supabase
+    .from("reward_waitlist")
+    .insert({
+      user_id: user.id,
+      reward_id: rewardId,
+    });
+
+  if (error) {
+    if (error.code === "23505") {
+      setWaitlistMessages((current) => ({
+        ...current,
+        [rewardId]: "Ya estás en la lista de espera.",
+      }));
+    } else {
+      console.error("Error en waitlist:", error);
+
+      setWaitlistMessages((current) => ({
+        ...current,
+        [rewardId]: "No pudimos agregarte. Intenta otra vez.",
+      }));
+    }
+
+    setJoiningRewardId(null);
+    return;
+  }
+
+  setWaitlistMessages((current) => ({
+    ...current,
+    [rewardId]: "Listo. Te avisaremos cuando esté disponible.",
+  }));
+
+  setJoiningRewardId(null);
+}
+
+async function redeemReward(rewardId: number) {
+  const confirmed = window.confirm(
+    "¿Quieres canjear esta recompensa usando tus AETH?"
+  );
+
+  if (!confirmed) return;
+
+  setRedeemingRewardId(rewardId);
+
+  setRedeemMessages((current) => ({
+    ...current,
+    [rewardId]: "",
+  }));
+
+  const { data, error } = await supabase.rpc(
+    "redeem_reward",
+    {
+      p_reward_id: rewardId,
+    }
+  );
+
+  if (error) {
+    console.error("Error al canjear:", error);
+
+    let message =
+      "No pudimos completar el canje. Intenta nuevamente.";
+
+    if (error.message.includes("INSUFFICIENT_AETH")) {
+      message = "Todavía no tienes suficientes AETH.";
+    } else if (error.message.includes("OUT_OF_STOCK")) {
+      message = "Esta recompensa se quedó sin stock.";
+    } else if (
+      error.message.includes("REWARD_NOT_AVAILABLE")
+    ) {
+      message = "Esta recompensa ya no está disponible.";
+    }
+
+    setRedeemMessages((current) => ({
+      ...current,
+      [rewardId]: message,
+    }));
+
+    setRedeemingRewardId(null);
+    return;
+  }
+
+  setRedeemMessages((current) => ({
+    ...current,
+    [rewardId]: `Canje realizado. Nuevo saldo: ${data.new_balance} AETH.`,
+  }));
+
+  setRewards((current) =>
+    current.map((reward) =>
+      reward.id === rewardId
+        ? {
+            ...reward,
+            stock_quantity: Math.max(
+              0,
+              reward.stock_quantity - 1
+            ),
+          }
+        : reward
+    )
+  );
+
+  setRedeemingRewardId(null);
+}
 
   return (
     <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-xl">
@@ -207,9 +281,28 @@ export default function RewardsCatalog() {
 
                 <div className="mt-3">
                   {available ? (
-                    <span className="inline-flex rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-400">
-                      Disponible
-                    </span>
+                    <>
+  <span className="inline-flex rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-400">
+    Disponible
+  </span>
+
+  <button
+    type="button"
+    disabled={redeemingRewardId === reward.id}
+    onClick={() => redeemReward(reward.id)}
+    className="mt-4 w-full rounded-lg bg-amber-500 px-3 py-2 text-sm font-bold text-black transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    {redeemingRewardId === reward.id
+      ? "Canjeando..."
+      : `Canjear por ${reward.cost_aeth.toLocaleString("es-MX")} AETH`}
+  </button>
+
+  {redeemMessages[reward.id] && (
+    <p className="mt-2 text-xs text-slate-400">
+      {redeemMessages[reward.id]}
+    </p>
+  )}
+</>
                   ) : (
                     <>
                       <span className="inline-flex rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-400">

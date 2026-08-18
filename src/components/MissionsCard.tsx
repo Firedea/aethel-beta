@@ -109,12 +109,34 @@ const normalizedCompleted = completedIds.map((id) => {
 
 setCompleted(normalizedCompleted);
 
-    setBalance(
-      rows.reduce(
-        (total, mission) => total + mission.reward,
-        0
-      )
-    );
+    const { data: redemptions, error: redemptionsError } =
+  await supabase
+    .from("redemptions")
+    .select("cost_aeth")
+    .eq("user_id", user.id)
+    .eq("status", "completed");
+
+if (redemptionsError) {
+  console.error(redemptionsError);
+  setMessage("No pudimos calcular tu saldo AETH.");
+  setLoading(false);
+  return;
+}
+
+const earned = rows.reduce(
+  (total, mission) => total + mission.reward,
+  0
+);
+
+const spent = (redemptions ?? []).reduce(
+  (
+    total,
+    redemption: { cost_aeth: number }
+  ) => total + redemption.cost_aeth,
+  0
+);
+
+setBalance(earned - spent);
 
     setLoading(false);
   }
