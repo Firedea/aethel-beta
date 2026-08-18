@@ -78,6 +78,7 @@ export default function RegisterCard() {
       password,
       options: {
         captchaToken,
+        emailRedirectTo: window.location.origin,
         data: {
           full_name: name.trim(),
         },
@@ -93,7 +94,7 @@ export default function RegisterCard() {
 
     if (data.user) {
       setMessage(
-        "Cuenta creada. Revisa tu correo para confirmar tu cuenta y después inicia sesión."
+        "¡Cuenta creada! Revisa tu correo y confirma tu cuenta. Al confirmar, volverás automáticamente a Aethel."
       );
     }
 
