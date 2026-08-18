@@ -3,6 +3,7 @@ import Header from "./components/Header";
 import WalletCard from "./components/WalletCard";
 import SendCard from "./components/SendCard";
 import RewardsCard from "./components/RewardsCard";
+import RewardsCatalog from "./components/RewardsCatalog";
 import MissionsCard from "./components/MissionsCard";
 import RegisterCard from "./components/RegisterCard";
 import RedemptionReceipt, {
@@ -140,9 +141,10 @@ function App() {
           supply={supply}
           network={network}
         />
+        
         <RegisterCard />
-        <MissionsCard />
-
+<MissionsCard />
+<RewardsCatalog />
         {account && (
           <>
             <WalletCard
