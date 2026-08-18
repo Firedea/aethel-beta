@@ -54,7 +54,9 @@ export default function RegisterCard() {
     }
 
     if (password.length < 6) {
-      setMessage("La contraseña debe tener al menos 6 caracteres.");
+      setMessage(
+        "La contraseña debe tener al menos 6 caracteres."
+      );
       return;
     }
 
@@ -72,15 +74,15 @@ export default function RegisterCard() {
     setMessage("");
 
     const { data, error } = await supabase.auth.signUp({
-  email,
-  password,
-  options: {
-    captchaToken,
-    data: {
-      full_name: name.trim(),
-    },
-  },
-});
+      email,
+      password,
+      options: {
+        captchaToken,
+        data: {
+          full_name: name.trim(),
+        },
+      },
+    });
 
     if (error) {
       setMessage(error.message);
@@ -103,25 +105,28 @@ export default function RegisterCard() {
     if (!email || !password) {
       setMessage("Escribe tu correo y contraseña.");
       return;
-      if (!captchaToken) {
-  setMessage("Completa la verificación de seguridad.");
-  return;
-}
+    }
+
+    if (!captchaToken) {
+      setMessage("Completa la verificación de seguridad.");
+      return;
     }
 
     setLoading(true);
     setMessage("");
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-  email,
-  password,
-  options: {
-    captchaToken: captchaToken ?? undefined,
-  },
-});
+    const { data, error } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: {
+          captchaToken,
+        },
+      });
 
     if (error) {
       setMessage(error.message);
+      setCaptchaToken(null);
       setLoading(false);
       return;
     }
@@ -130,6 +135,7 @@ export default function RegisterCard() {
       setUser(data.user);
     }
 
+    setCaptchaToken(null);
     setLoading(false);
   }
 
@@ -183,7 +189,9 @@ export default function RegisterCard() {
   if (loading) {
     return (
       <div className="max-w-md mx-auto rounded-2xl border border-gray-800 bg-gray-900 p-6">
-        <p className="text-gray-400">Cargando Aethel...</p>
+        <p className="text-gray-400">
+          Cargando Aethel...
+        </p>
       </div>
     );
   }
@@ -213,12 +221,18 @@ export default function RegisterCard() {
           Hola {displayName} 👋
         </h2>
 
-        <p className="mt-1 text-gray-400">Bienvenido a Aethel.</p>
+        <p className="mt-1 text-gray-400">
+          Bienvenido a Aethel.
+        </p>
 
-        <p className="mt-4 text-sm text-gray-500">{user.email}</p>
+        <p className="mt-4 text-sm text-gray-500">
+          {user.email}
+        </p>
 
         {message && (
-          <p className="mt-4 text-sm text-gray-300">{message}</p>
+          <p className="mt-4 text-sm text-gray-300">
+            {message}
+          </p>
         )}
 
         {settingsOpen && (
@@ -244,7 +258,9 @@ export default function RegisterCard() {
               </div>
 
               <div className="mt-6">
-                <p className="text-sm text-gray-500">Nombre</p>
+                <p className="text-sm text-gray-500">
+                  Nombre
+                </p>
 
                 <input
                   type="text"
@@ -262,7 +278,9 @@ export default function RegisterCard() {
                   disabled={savingName}
                   className="mt-3 w-full rounded-xl bg-amber-400 p-3 font-bold text-black disabled:opacity-50"
                 >
-                  {savingName ? "Guardando..." : "Guardar nombre"}
+                  {savingName
+                    ? "Guardando..."
+                    : "Guardar nombre"}
                 </button>
               </div>
 
@@ -289,8 +307,9 @@ export default function RegisterCard() {
       </h2>
 
       <p className="mt-2 text-sm text-gray-400">
-        Crea tu cuenta para completar misiones, ganar AETH —los puntos
-        de recompensa de Aethel— y desbloquear beneficios.
+        Crea tu cuenta para completar misiones, ganar AETH
+        —los puntos de recompensa de Aethel— y desbloquear
+        beneficios.
       </p>
 
       <input
@@ -351,7 +370,9 @@ export default function RegisterCard() {
         disabled={loading || !captchaToken}
         className="mt-4 w-full rounded-xl bg-amber-400 p-3 font-bold text-black disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {loading ? "Creando cuenta..." : "Crear mi cuenta"}
+        {loading
+          ? "Creando cuenta..."
+          : "Crear mi cuenta"}
       </button>
 
       <div className="my-4 flex items-center gap-3">
@@ -367,14 +388,18 @@ export default function RegisterCard() {
       <button
         type="button"
         onClick={handleLogin}
-        disabled={loading}
-        className="w-full rounded-xl border border-amber-400 p-3 font-bold text-amber-400 hover:bg-amber-400/10 disabled:opacity-50"
+        disabled={loading || !captchaToken}
+        className="w-full rounded-xl border border-amber-400 p-3 font-bold text-amber-400 hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        Iniciar sesión
+        {loading
+          ? "Iniciando sesión..."
+          : "Iniciar sesión"}
       </button>
 
       {message && (
-        <p className="mt-4 text-sm text-gray-300">{message}</p>
+        <p className="mt-4 text-sm text-gray-300">
+          {message}
+        </p>
       )}
     </div>
   );
